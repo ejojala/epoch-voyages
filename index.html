@@ -12,8 +12,16 @@
     <script type="module" src="/src/main.jsx"></script>
 <!-- Hidden registration form so Netlify detects "proposal" -->
       <form name="proposal" data-netlify="true" netlify-honeypot="bot-field" hidden>
-        <input type="text" name="name" />
-        <input type="email" name="email" />
+        <input type="text"   name="name" />
+        <input type="email"  name="email" />
+		<input type="text"   name="destinations" />
+		<input type="text"   name="dates" />
+		<input type="text"   name="travelers" />
+		<textarea            name="interests"></textarea>
+		<input type="hidden" name="page" />
+		<input type="hidden" name="subject" />
+		<!-- Register the Turnstile field name so Netlify passes it along -->
+		<input type="hidden" name="cf-turnstile-response" />
       </form>
   </body>
 </html>

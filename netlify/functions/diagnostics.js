@@ -5,6 +5,7 @@ export async function handler() {
     body: JSON.stringify({
       ok: true,
       cfg: {
+		VITE_TURNSTILE_SITE_KEY: !!process.env.VITE_TURNSTILE_SITE_KEY,
         TURNSTILE_SECRET_KEY: !!process.env.TURNSTILE_SECRET_KEY,
         APPS_SCRIPT_URL: !!process.env.APPS_SCRIPT_URL,
         APPS_SCRIPT_SECRET: !!process.env.APPS_SCRIPT_SECRET
