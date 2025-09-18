@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 export default function ProposalForm() {
   const page = typeof window !== "undefined" ? window.location.pathname : "/";
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
   const [token, setToken] = useState("");
-  const widgetRef = useRef(null);
+  const mountRef = useRef(null);
 
   useEffect(() => {
-    // Ensure the Turnstile script is present
+    // Ensure Turnstile script is present
     if (!document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')) {
       const s = document.createElement("script");
       s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
@@ -14,33 +15,40 @@ export default function ProposalForm() {
       document.head.appendChild(s);
     }
 
+    // Try to render programmatically once script is ready
     const tryRender = () => {
-      if (!widgetRef.current) return;
-      if (!window.turnstile) return; // script not ready yet
-      if (widgetRef.current.dataset.rendered === "1") return;
+      const el = mountRef.current;
+      if (!el) return;
 
-      widgetRef.current.dataset.rendered = "1";
-      window.turnstile.render(widgetRef.current, {
-        sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+      // If auto-render already happened (declarative fallback), detect iframe and stop
+      if (el.querySelector("iframe")) {
+        if (!el.dataset.rendered) el.dataset.rendered = "1";
+        return;
+      }
+      if (!window.turnstile || !siteKey || el.dataset.rendered === "1") return;
+
+      window.turnstile.render(el, {
+        sitekey: siteKey,
         theme: "light",
         "refresh-expired": "auto",
         callback: (t) => setToken(t || ""),
         "expired-callback": () => setToken(""),
         "error-callback": () => setToken(""),
       });
+      el.dataset.rendered = "1";
     };
 
-    // Try immediately, then poll briefly until the script is ready
     const id = setInterval(tryRender, 200);
     tryRender();
     return () => clearInterval(id);
-  }, []);
+  }, [siteKey]);
 
   return (
     <section style={{ marginTop: 48 }}>
       <h2 style={{ fontSize: 28, margin: "0 0 12px" }}>Start Your Proposal</h2>
 
       <form
+        id="proposal-form"
         name="proposal"
         method="POST"
         data-netlify="true"
@@ -79,21 +87,24 @@ export default function ProposalForm() {
         <label htmlFor="interests">Interests</label>
         <textarea id="interests" name="interests" rows="5" placeholder="Art, WWII sites, markets, wine…" />
 
-        {/* Programmatic Turnstile mount */}
-        <div ref={widgetRef} className="cf-turnstile" />
+        {/* Turnstile mount — programmatic render + declarative fallback */}
+        <div
+          id="turnstile-mount"
+          ref={mountRef}
+          className="cf-turnstile"
+          data-sitekey={siteKey || undefined}
+          data-theme="light"
+          data-refresh-expired="auto"
+        />
 
-        {/* Fallback: ensure the token is submitted even if auto-injection fails */}
-        <input type="hidden" name="cf-turnstile-response" value={token} />
+        {/* Hidden input that ALWAYS carries the token */}
+        <input type="hidden" name="cf-turnstile-response" value={token || ""} />
 
         <button type="submit" className="cta" style={{ width: "fit-content" }} disabled={!token}>
           Send request
         </button>
 
-        {!token && (
-          <small style={{ color: "#666" }}>
-            Please complete the verification above to enable Send.
-          </small>
-        )}
+        {!token && <small style={{ color: "#666" }}>Please complete the verification above to enable Send.</small>}
       </form>
     </section>
   );
