@@ -1,44 +1,29 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ProposalForm() {
   const page = typeof window !== "undefined" ? window.location.pathname : "/";
   const [token, setToken] = useState("");
-  const widgetRef = useRef(null);
 
   useEffect(() => {
-    // Ensure the Turnstile script is present
+    // Ensure the script is present (dev or prod)
     if (!document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')) {
       const s = document.createElement("script");
       s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
       s.async = true; s.defer = true;
       document.head.appendChild(s);
     }
-
-    const tryRender = () => {
-      if (!widgetRef.current) return;
-      if (!window.turnstile) return; // script not ready yet
-      if (widgetRef.current.dataset.rendered === "1") return;
-
-      widgetRef.current.dataset.rendered = "1";
-      window.turnstile.render(widgetRef.current, {
-        sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
-        theme: "light",
-        "refresh-expired": "auto",
-        callback: (t) => setToken(t || ""),
-        "expired-callback": () => setToken(""),
-        "error-callback": () => setToken(""),
-      });
+    // Expose callbacks for Turnstile
+    window.onEpochTurnstileSuccess = (t) => setToken(t || "");
+    window.onEpochTurnstileExpire = () => setToken("");
+    return () => {
+      delete window.onEpochTurnstileSuccess;
+      delete window.onEpochTurnstileExpire;
     };
-
-    // Try immediately, then poll briefly until the script is ready
-    const id = setInterval(tryRender, 200);
-    tryRender();
-    return () => clearInterval(id);
   }, []);
 
   return (
-    <section style={{ marginTop: 48 }}>
-      <h2 style={{ fontSize: 28, margin: "0 0 12px" }}>Start Your Proposal</h2>
+    <section style={{marginTop: 48}}>
+      <h2 style={{fontSize: 28, margin: "0 0 12px"}}>Start Your Proposal</h2>
 
       <form
         name="proposal"
@@ -46,19 +31,16 @@ export default function ProposalForm() {
         data-netlify="true"
         netlify-honeypot="bot-field"
         action="/thanks"
-        style={{ display: "grid", gap: 12, maxWidth: 720 }}
+        style={{display:"grid", gap:12, maxWidth: 720}}
       >
-        {/* Netlify-required fields */}
+        {/* Netlify required */}
         <input type="hidden" name="form-name" value="proposal" />
         <input type="hidden" name="subject" value="New Epoch Voyages inquiry" />
         <input type="hidden" name="page" value={page} />
 
         {/* Honeypot */}
-        <p style={{ display: "none" }} aria-hidden="true">
-          <label>
-            Don’t fill this out if you’re human:
-            <input name="bot-field" autoComplete="off" tabIndex={-1} />
-          </label>
+        <p style={{display:"none"}} aria-hidden="true">
+          <label>Don’t fill this out if you’re human: <input name="bot-field" autoComplete="off" tabIndex={-1} /></label>
         </p>
 
         <label htmlFor="name">Full name</label>
@@ -79,20 +61,25 @@ export default function ProposalForm() {
         <label htmlFor="interests">Interests</label>
         <textarea id="interests" name="interests" rows="5" placeholder="Art, WWII sites, markets, wine…" />
 
-        {/* Programmatic Turnstile mount */}
-        <div ref={widgetRef} className="cf-turnstile" />
+        {/* Turnstile widget INSIDE the form */}
+        <div
+          className="cf-turnstile"
+          data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+          data-theme="light"
+          data-callback="onEpochTurnstileSuccess"
+          data-expired-callback="onEpochTurnstileExpire"
+          data-refresh-expired="auto"
+        />
 
         {/* Fallback: ensure the token is submitted even if auto-injection fails */}
         <input type="hidden" name="cf-turnstile-response" value={token} />
 
-        <button type="submit" className="cta" style={{ width: "fit-content" }} disabled={!token}>
+        <button type="submit" className="cta" style={{width:"fit-content"}} disabled={!token}>
           Send request
         </button>
 
         {!token && (
-          <small style={{ color: "#666" }}>
-            Please complete the verification above to enable Send.
-          </small>
+          <small style={{color:"#666"}}>Please complete the verification above to enable Send.</small>
         )}
       </form>
     </section>
