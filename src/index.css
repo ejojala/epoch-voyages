@@ -1,0 +1,13 @@
+:root { --ink:#1b1b1b; --brand:#1d4a7a; --bg:#fff; }
+* { box-sizing: border-box; }
+html,body,#root{ height:100%; }
+body { margin:0; font-family: Georgia, 'Times New Roman', serif; color: var(--ink); background: var(--bg); }
+a { color: var(--brand); text-decoration: none; }
+.container { max-width:1100px; margin:0 auto; padding: 24px; }
+.header { display:flex; align-items:center; gap:16px; padding:16px 0; }
+.logo { height:44px; width:auto; }
+.hero { padding: 72px 0; }
+.hero h1 { font-size: clamp(28px, 5vw, 52px); line-height:1.1; margin:0 0 12px; }
+.cta { margin-top:16px; display:inline-block; background:var(--brand); color:white; padding:12px 18px; border-radius:10px; }
+.footer { font-size: 14px; color:#666; padding:24px 0; border-top:1px solid #eee; margin-top:48px; }
+.kv { background: radial-gradient(1200px 600px at 10% 10%, #f4efe6, transparent); border:1px solid #eee; border-radius:16px; padding:24px; }
