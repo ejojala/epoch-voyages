@@ -1,6 +1,8 @@
 import React from 'react'
 import { Helmet } from 'react-helmet-async'
 import DevStatus from './components/DevStatus.jsx'
+import Destinations from './components/Destinations.jsx'
+import ProposalForm from './components/ProposalForm.jsx'
 
 export default function App(){
   return (
@@ -28,6 +30,9 @@ export default function App(){
           </p>
           <a className="cta" href="mailto:eric@epochvoyages.com?subject=Epoch%20Voyages%20Consult">Start a conversation</a>
         </section>
+
+        <Destinations />
+        <ProposalForm />
       </main>
 
       <footer className="container footer">
