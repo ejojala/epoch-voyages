@@ -1,45 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function ProposalForm() {
+  // Add the current page for context (works in React)
   const page = typeof window !== "undefined" ? window.location.pathname : "/";
-  const [token, setToken] = useState("");
 
+  // Ensure Turnstile script is present in dev too
   useEffect(() => {
-    // Ensure the script is present (dev or prod)
-    if (!document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')) {
+    if (!window.turnstile && !document.querySelector('script[src*="turnstile"]')) {
       const s = document.createElement("script");
       s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
       s.async = true; s.defer = true;
       document.head.appendChild(s);
     }
-    // Expose callbacks for Turnstile
-    window.onEpochTurnstileSuccess = (t) => setToken(t || "");
-    window.onEpochTurnstileExpire = () => setToken("");
-    return () => {
-      delete window.onEpochTurnstileSuccess;
-      delete window.onEpochTurnstileExpire;
-    };
   }, []);
 
   return (
     <section style={{marginTop: 48}}>
       <h2 style={{fontSize: 28, margin: "0 0 12px"}}>Start Your Proposal</h2>
-
       <form
         name="proposal"
         method="POST"
+		action="/thanks"
         data-netlify="true"
         netlify-honeypot="bot-field"
-        action="/thanks"
         style={{display:"grid", gap:12, maxWidth: 720}}
       >
-        {/* Netlify required */}
+        {/* Required by Netlify */}
         <input type="hidden" name="form-name" value="proposal" />
         <input type="hidden" name="subject" value="New Epoch Voyages inquiry" />
         <input type="hidden" name="page" value={page} />
 
         {/* Honeypot */}
-        <p style={{display:"none"}} aria-hidden="true">
+        <p className="hidden" aria-hidden="true" style={{display:"none"}}>
           <label>Don’t fill this out if you’re human: <input name="bot-field" autoComplete="off" tabIndex={-1} /></label>
         </p>
 
@@ -61,26 +53,14 @@ export default function ProposalForm() {
         <label htmlFor="interests">Interests</label>
         <textarea id="interests" name="interests" rows="5" placeholder="Art, WWII sites, markets, wine…" />
 
-        {/* Turnstile widget INSIDE the form */}
+        {/* Cloudflare Turnstile */}
         <div
           className="cf-turnstile"
           data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
           data-theme="light"
-          data-callback="onEpochTurnstileSuccess"
-          data-expired-callback="onEpochTurnstileExpire"
-          data-refresh-expired="auto"
         />
 
-        {/* Fallback: ensure the token is submitted even if auto-injection fails */}
-        <input type="hidden" name="cf-turnstile-response" value={token} />
-
-        <button type="submit" className="cta" style={{width:"fit-content"}} disabled={!token}>
-          Send request
-        </button>
-
-        {!token && (
-          <small style={{color:"#666"}}>Please complete the verification above to enable Send.</small>
-        )}
+        <button type="submit" className="cta" style={{width:"fit-content"}}>Send request</button>
       </form>
     </section>
   );
