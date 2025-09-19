@@ -98,7 +98,7 @@ export default function ProposalForm() {
         />
 
         {/* Hidden input that ALWAYS carries the token */}
-        <input type="hidden" name="cf-turnstile-response" value={token || ""} />
+        <input type="hidden" name="cf-turnstile-token" value={token || ""} />
 
         <button type="submit" className="cta" style={{ width: "fit-content" }} disabled={!token}>
           Send request

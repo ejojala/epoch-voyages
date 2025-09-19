@@ -4,15 +4,27 @@ export async function handler(event) {
     const data = outer && outer.payload ? outer.payload : outer; // Netlify event or direct POST
     const fields = (data && (data.data || data.fields)) || {};
 
-    // 1) Turnstile verify
-    const token =
-      fields["cf-turnstile-response"] ||
-      fields["cf-turnstile"] ||
-      fields["cf-turnstile-token"];
+// Normalize token: support array (Netlify sends array if there are duplicate fields)
+function pickToken(v) {
+  if (Array.isArray(v)) return v.find(Boolean) || "";
+  return v || "";
+}
 
-    if (!token) {
-      console.warn("Missing Turnstile token");
-      return { statusCode: 400, body: "Missing Turnstile token" };
+const raw =
+  fields["cf-turnstile-response"] ??
+  fields["cf-turnstile"] ??
+  fields["cf-turnstile-token"];
+
+const token = pickToken(raw).trim();
+
+if (!token) {
+  console.warn("Missing Turnstile token", { rawType: typeof raw, isArray: Array.isArray(raw) });
+  return { statusCode: 400, body: "Missing Turnstile token" };
+}
+
+// (optional debug for one submission)
+// console.log("Turnstile token length:", token.length);
+
     }
 
     const form = new URLSearchParams();
