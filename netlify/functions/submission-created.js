@@ -4,16 +4,17 @@ export async function handler(event) {
     const data = outer && outer.payload ? outer.payload : outer; // Netlify event or direct POST
     const fields = (data && (data.data || data.fields)) || {};
 
-// Normalize token: support array (Netlify sends array if there are duplicate fields)
+// --- Turnstile token (normalize array -> string) ---
 function pickToken(v) {
   if (Array.isArray(v)) return v.find(Boolean) || "";
   return v || "";
 }
 
 const raw =
-  fields["cf-turnstile-response"] ??
-  fields["cf-turnstile"] ??
-  fields["cf-turnstile-token"];
+  fields["cf-turnstile-token"] ??               // our fallback field name
+  fields["cf-turnstile-response"] ??            // CF auto-injected hidden field
+  fields["cf-turnstile"] ??                     // other variants, just in case
+  fields["cf-turnstile-token[]"] ?? null;
 
 const token = pickToken(raw).trim();
 
@@ -27,22 +28,20 @@ if (!token) {
 
     }
 
-    const form = new URLSearchParams();
-    form.append("secret", process.env.TURNSTILE_SECRET_KEY || "");
-    form.append("response", token);
-    if (event.headers && event.headers["x-nf-client-connection-ip"]) {
-      form.append("remoteip", event.headers["x-nf-client-connection-ip"]);
-    }
+// Verify with Cloudflare
+const form = new URLSearchParams();
+form.append("secret", process.env.TURNSTILE_SECRET_KEY || "");
+form.append("response", token);
 
-    const verify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      body: form,
-    });
-    const v = await verify.json();
-    if (!v.success) {
-      console.error("Turnstile verification failed", v);
-      return { statusCode: 403, body: "Verification failed" };
-    }
+const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+  method: "POST",
+  body: form,
+});
+const v = await res.json();
+if (!v.success) {
+  console.error("Turnstile verification failed", v);
+  return { statusCode: 403, body: "Verification failed" }; // IMPORTANT: stop here
+}
 
     // 2) Forward to Apps Script to send the email
     if (!process.env.APPS_SCRIPT_URL || !process.env.APPS_SCRIPT_SECRET) {
