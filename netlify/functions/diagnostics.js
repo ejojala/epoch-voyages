@@ -1,16 +1,17 @@
-export async function handler() {
+// netlify/functions/diagnostics.js
+exports.handler = async () => {
   return {
     statusCode: 200,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     body: JSON.stringify({
       ok: true,
       cfg: {
-		VITE_TURNSTILE_SITE_KEY: !!process.env.VITE_TURNSTILE_SITE_KEY,
+        VITE_TURNSTILE_SITE_KEY: !!process.env.VITE_TURNSTILE_SITE_KEY,
         TURNSTILE_SECRET_KEY: !!process.env.TURNSTILE_SECRET_KEY,
         APPS_SCRIPT_URL: !!process.env.APPS_SCRIPT_URL,
-        APPS_SCRIPT_SECRET: !!process.env.APPS_SCRIPT_SECRET
+        APPS_SCRIPT_SECRET: !!process.env.APPS_SCRIPT_SECRET,
       },
-      ts: new Date().toISOString()
+      ts: new Date().toISOString(),
     }),
   };
-}
+};

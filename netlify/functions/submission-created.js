@@ -1,61 +1,54 @@
-export async function handler(event) {
+// netlify/functions/submission-created.js
+exports.handler = async (event) => {
   try {
     const outer = JSON.parse(event.body || "{}");
-    const data = outer && outer.payload ? outer.payload : outer; // Netlify event or direct POST
+    const data = outer && outer.payload ? outer.payload : outer; // Netlify event OR direct POST
     const fields = (data && (data.data || data.fields)) || {};
 
-// --- Turnstile token (normalize array -> string) ---
-function pickToken(v) {
-  if (Array.isArray(v)) return v.find(Boolean) || "";
-  return v || "";
-}
+    // --- Turnstile token (normalize array -> single string) ---
+    const pickToken = (v) => (Array.isArray(v) ? (v.find(Boolean) || "") : (v || ""));
 
-const raw =
-  fields["cf-turnstile-token"] ??               // our fallback field name
-  fields["cf-turnstile-response"] ??            // CF auto-injected hidden field
-  fields["cf-turnstile"] ??                     // other variants, just in case
-  fields["cf-turnstile-token[]"] ?? null;
+    const raw =
+      fields["cf-turnstile-token"] ??            // our fallback hidden field
+      fields["cf-turnstile-response"] ??         // CF auto-injected hidden field
+      fields["cf-turnstile"] ?? null;
 
-const token = pickToken(raw).trim();
-
-if (!token) {
-  console.warn("Missing Turnstile token", { rawType: typeof raw, isArray: Array.isArray(raw) });
-  return { statusCode: 400, body: "Missing Turnstile token" };
-}
-
-// (optional debug for one submission)
-// console.log("Turnstile token length:", token.length);
-
+    const token = pickToken(raw).trim();
+    if (!token) {
+      console.warn("Missing Turnstile token", { rawType: typeof raw, isArray: Array.isArray(raw) });
+      return { statusCode: 400, body: "Missing Turnstile token" };
     }
 
-// Verify with Cloudflare
-const form = new URLSearchParams();
-form.append("secret", process.env.TURNSTILE_SECRET_KEY || "");
-form.append("response", token);
+    // Verify with Cloudflare Turnstile
+    const form = new URLSearchParams();
+    form.append("secret", process.env.TURNSTILE_SECRET_KEY || "");
+    form.append("response", token);
 
-const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-  method: "POST",
-  body: form,
-});
-const v = await res.json();
-if (!v.success) {
-  console.error("Turnstile verification failed", v);
-  return { statusCode: 403, body: "Verification failed" }; // IMPORTANT: stop here
-}
+    const clientIp = event.headers?.["x-nf-client-connection-ip"] || event.headers?.["client-ip"];
+    if (clientIp) form.append("remoteip", clientIp);
 
-    // 2) Forward to Apps Script to send the email
-    if (!process.env.APPS_SCRIPT_URL || !process.env.APPS_SCRIPT_SECRET) {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form,
+    });
+    const verify = await res.json();
+    if (!verify.success) {
+      console.error("Turnstile verification failed", verify);
+      return { statusCode: 403, body: "Verification failed" }; // stop here if captcha fails
+    }
+
+    // Forward to Apps Script to send the email
+    const url = process.env.APPS_SCRIPT_URL;
+    const secret = process.env.APPS_SCRIPT_SECRET;
+    if (!url || !secret) {
       console.error("Missing APPS_SCRIPT_URL or APPS_SCRIPT_SECRET");
       return { statusCode: 500, body: "Missing email configuration" };
     }
 
-    const forward = await fetch(process.env.APPS_SCRIPT_URL, {
+    const forward = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        secret: process.env.APPS_SCRIPT_SECRET,
-        payload: data,
-      }),
+      body: JSON.stringify({ secret, payload: data }),
     });
 
     const text = await forward.text();
@@ -66,4 +59,4 @@ if (!v.success) {
     console.error("submission-created error", e);
     return { statusCode: 500, body: "Server error" };
   }
-}
+};
